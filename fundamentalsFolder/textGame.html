@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+  <meta charset="UTF-8">
+  <title>Тъмницата на Смелите</title>
+  <style>
+    body {
+      background: #1e1e2f;
+      color: #f1f1f1;
+      font-family: 'Courier New', Courier, monospace;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem;
+    }
+
+    h1 {
+      color: #ffc107;
+      text-align: center;
+    }
+
+    button {
+      margin: 0.3rem;
+      padding: 10px 18px;
+      font-size: 1rem;
+      background-color: #ffc107;
+      color: #1e1e2f;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s ease-in-out;
+    }
+
+    button:hover {
+      transform: scale(1.05);
+    }
+
+    .output {
+      margin-top: 2rem;
+      width: 80%;
+      max-width: 600px;
+      background-color: #2a2a3c;
+      padding: 1rem;
+      border-radius: 10px;
+      min-height: 200px;
+      white-space: pre-wrap;
+      transition: all 0.3s ease;
+    }
+
+    .footer {
+      position: fixed;
+      bottom: 10px;
+      right: 20px;
+      font-size: 0.8rem;
+      color: #aaa;
+    }
+
+    #pathButtons, #characterSelect, #startAdventure {
+      margin-top: 1rem;
+      display: none;
+    }
+
+    .emoji {
+      font-size: 1.3rem;
+      margin-right: 0.4rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>🏰 Тъмницата на Смелите</h1>
+
+  <!-- Избор на герой -->
+  <div id="characterSelect">
+    <p>Избери своя герой:</p>
+    <button onclick="selectCharacter('Войн')">🛡️ Войн</button>
+    <button onclick="selectCharacter('Кралица')">👑 Кралица</button>
+  </div>
+
+  <!-- Старт на историята -->
+  <div id="startAdventure">
+    <button onclick="startGame()">🚪 Влез в тъмницата</button>
+  </div>
+
+  <!-- Избор на път -->
+  <div id="pathButtons">
+    <button onclick="choosePath(0)">Path 1</button>
+    <button onclick="choosePath(1)">Path 2</button>
+    <button onclick="choosePath(2)">Path 3</button>
+  </div>
+
+  <!-- История и резултати -->
+  <div class="output" id="output"></div>
+  <div class="footer">powered by Mihaela Zaykova</div>
+
+  <script>
+    let allRooms = [
+      'potion 20', 'potion 30', 'potion 10',
+      'chest 50', 'chest 100', 'chest 20',
+      'rat 10', 'bat 20', 'snake 15', 'orc 30',
+      'dragon 70', 'goblin 25', 'zombie 40',
+      'escape 0' // Стая на бягството
+    ];
+
+    let health = 100;
+    let coins = 0;
+    let currentStep = 0;
+    let isGameOver = false;
+    let pathChoices = [];
+    let character = '';
+    let bossRoom = 'boss 90'; // финален бос
+
+    // Първи екран
+    document.getElementById("characterSelect").style.display = "block";
+
+    function print(msg) {
+      document.getElementById("output").innerText += msg + '\n';
+    }
+
+    function selectCharacter(type) {
+      character = type;
+      document.getElementById("characterSelect").style.display = "none";
+      document.getElementById("output").innerText =
+        `🎬 Историята започва...\n\nТи си ${type.toLowerCase()}, дошъл да се изправи срещу неизвестния път на Тъмницата на Смелите.\n\nСъдбата те очаква...`;
+      document.getElementById("startAdventure").style.display = "block";
+    }
+
+    function startGame() {
+      health = 100;
+      coins = 0;
+      currentStep = 0;
+      isGameOver = false;
+      document.getElementById("output").innerText += `\n\n🚪 Стъпваш в първата стая...\n`;
+      document.getElementById("startAdventure").style.display = "none";
+      generatePaths();
+    }
+
+    function generatePaths() {
+      pathChoices = [];
+      for (let i = 0; i < 3; i++) {
+        if (Math.random() < 0.05 && currentStep > 2) {
+          pathChoices.push('escape 0'); // 5% шанс за стая на бягството след 2рата стъпка
+        } else {
+          const randomIndex = Math.floor(Math.random() * allRooms.length);
+          pathChoices.push(allRooms[randomIndex]);
+        }
+      }
+      document.getElementById("pathButtons").style.display = "block";
+    }
+
+    function choosePath(index) {
+      if (isGameOver) return;
+
+      const room = pathChoices[index];
+      const [roomType, valueStr] = room.split(' ');
+      const value = Number(valueStr);
+      currentStep++;
+      document.getElementById("pathButtons").style.display = "none";
+
+      switch(roomType) {
+        case 'potion':
+          let healed = Math.min(100 - health, value);
+          health += healed;
+          print(`🧪 Намери лечебна отвара и възстанови ${healed} hp`);
+          break;
+        case 'chest':
+          coins += value;
+          print(`💰 Откри сандък с ${value} монети`);
+          break;
+        case 'escape':
+          coins += 10000;
+          print(`🚪 Стая на БЯГСТВОТО! Печелиш играта с 10,000 злато! 🏆`);
+          winGame(true);
+          return;
+        default:
+          health -= value;
+          if (health > 0) {
+            print(`⚔️ Победи ${roomType} и продължаваш напред!`);
+          } else {
+            print(`☠️ ${roomType} те уби...`);
+            gameOver();
+            return;
+          }
+      }
+
+      print(`❤️ Здраве: ${health} | 💎 Монети: ${coins}\n`);
+
+      // БОС след 10 стъпки
+      if (currentStep === 10) {
+        setTimeout(() => fightBoss(), 1000);
+      } else {
+        setTimeout(() => generatePaths(), 800);
+      }
+    }
+
+    function fightBoss() {
+      print(`👹 Стигна до последната стая...`);
+      print(`🔥 Последна битка срещу Древния Бос!`);
+      const bossDamage = 90;
+      health -= bossDamage;
+
+      if (health > 0) {
+        print(`🗡️ Победи БОСА!`);
+        coins += 500;
+        winGame();
+      } else {
+        print(`💀 БОСЪТ те прегази безмилостно...`);
+        gameOver();
+      }
+    }
+
+    function winGame(fromEscape = false) {
+      isGameOver = true;
+      print(`🏆 КРАЙ НА ПРИКЛЮЧЕНИЕТО`);
+      print(`🗺️ Мина ${currentStep} стаи`);
+      print(`💎 Общо злато: ${coins}`);
+      print(`❤️ Здраве: ${health > 0 ? health : 0}`);
+      if (fromEscape) print(`🌀 Избяга от тъмницата жив!`);
+      restartOption();
+    }
+
+    function gameOver() {
+      isGameOver = true;
+      print(`❌ Играта приключи...`);
+      print(`🗺️ Мина ${currentStep} стаи`);
+      print(`💎 Монети: ${coins}`);
+      print(`❤️ Последно здраве: 0`);
+      restartOption();
+    }
+
+    function restartOption() {
+      setTimeout(() => {
+        document.getElementById("startAdventure").style.display = "block";
+        document.getElementById("startAdventure").firstElementChild.innerText = "🔁 Играй отново";
+      }, 1500);
+    }
+  </script>
+</body>
+</html>
